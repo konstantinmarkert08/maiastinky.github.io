@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maia's Super Study Simulator & Deck Builder</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Fredoka & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            fredoka: ['Fredoka', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+            },
+            catPink: '#f472b6',
+            catPurple: '#a855f7',
+            catYellow: '#fbbf24',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Card Flip CSS Animation */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+
+    /* Cat Clapping & Animations */
+    @keyframes clap-left {
+      0%, 100% { transform: rotate(0deg) translate(0, 0); }
+      50% { transform: rotate(25deg) translate(12px, -8px); }
+    }
+    @keyframes clap-right {
+      0%, 100% { transform: rotate(0deg) translate(0, 0); }
+      50% { transform: rotate(-25deg) translate(-12px, -8px); }
+    }
+    @keyframes tail-wag {
+      0%, 100% { transform: rotate(-5deg); }
+      50% { transform: rotate(15deg); }
+    }
+    @keyframes ear-twitch {
+      0%, 90%, 100% { transform: rotate(0deg); }
+      95% { transform: rotate(-10deg); }
+    }
+
+    .animate-clap-left {
+      animation: clap-left 0.3s ease-in-out infinite;
+      transform-origin: bottom right;
+    }
+    .animate-clap-right {
+      animation: clap-right 0.3s ease-in-out infinite;
+      transform-origin: bottom left;
+    }
+    .animate-tail {
+      animation: tail-wag 2s ease-in-out infinite;
+      transform-origin: bottom left;
+    }
+    .animate-ear {
+      animation: ear-twitch 3s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans bg-slate-900 text-slate-100 overflow-x-hidden select-none">
+
+  <!-- TOP HEADER NAVBAR -->
+  <header class="bg-slate-800/90 backdrop-blur-md border-b border-slate-700/60 sticky top-0 z-40 px-4 py-3 shadow-lg">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchMode('deckhub')">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-600 to-indigo-500 flex items-center justify-center shadow-md shadow-pink-500/20">
+          <span class="text-xl">🚀</span>
+        </div>
+        <div>
+          <h1 class="font-fredoka text-xl font-bold tracking-wide bg-gradient-to-r from-pink-400 via-purple-300 to-sky-400 bg-clip-text text-transparent">
+            Super Study Simulator
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">Multi-Subject Learning Engine for <span class="text-pink-400 font-semibold">Maia</span> ✨</p>
+        </div>
+      </div>
+
+      <!-- Controls & Subject Selector Bar -->
+      <div class="flex items-center flex-wrap gap-2 text-sm">
+        
+        <!-- Active Subject Dropdown Selector -->
+        <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 space-x-2">
+          <span class="text-xs text-slate-400 uppercase font-semibold">Subject:</span>
+          <select id="globalSubjectSelect" onchange="changeActiveSubject(this.value)" class="bg-transparent text-slate-200 text-xs sm:text-sm font-semibold focus:outline-none cursor-pointer">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <!-- Lesson Filter Dropdown -->
+        <select id="lessonFilter" onchange="changeLessonFilter(this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs sm:text-sm rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-pink-500 outline-none">
+          <option value="ALL">All Topics / Lessons</option>
+        </select>
+
+        <!-- Deck Builder Button -->
+        <button onclick="switchMode('deckbuilder')" class="bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1">
+          <span>➕</span> New Subject
+        </button>
+
+        <!-- Sound Toggle Button -->
+        <button id="soundToggleBtn" onclick="toggleSound()" class="bg-slate-700/70 hover:bg-slate-700 text-slate-200 p-2 rounded-xl transition flex items-center gap-1.5" title="Toggle Sound & Speech">
+          <svg id="soundIcon" class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+          </svg>
+        </button>
+
+        <!-- Reset Progress Button -->
+        <button onclick="confirmResetModal()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Reset
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <div class="bg-slate-800/40 border-b border-slate-800 px-4">
+    <div class="max-w-7xl mx-auto flex items-center space-x-2 overflow-x-auto py-2 scrollbar-none">
+      <button onclick="switchMode('flashcards')" id="tab-flashcards" class="tab-btn active-tab px-4 py-2 rounded-xl font-fredoka font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+        <span>🎴</span> Flashcards
+      </button>
+      <button onclick="switchMode('quiz')" id="tab-quiz" class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl font-fredoka font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+        <span>⭐</span> Quiz Mode
+      </button>
+      <button onclick="switchMode('games')" id="tab-games" class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl font-fredoka font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+        <span>🎮</span> Mini-Games
+      </button>
+      <button onclick="switchMode('cheatsheet')" id="tab-cheatsheet" class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl font-fredoka font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+        <span>📖</span> Master Cheat Sheet
+      </button>
+      <button onclick="switchMode('deckhub')" id="tab-deckhub" class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl font-fredoka font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+        <span>📚</span> Subject Hub
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-between relative">
+
+    <!-- CAT COMPANION BANNER -->
+    <div id="catBanner" class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 mb-6 flex items-center justify-between shadow-lg relative overflow-hidden">
+      <!-- Background Glow -->
+      <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-pink-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex items-center space-x-4 z-10">
+        <!-- SVG Cat Avatar -->
+        <div class="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 cursor-pointer" onclick="triggerCatApplause(true)" title="Click Professor Whiskers for applause!">
+          <svg id="catSvg" viewBox="0 0 120 120" class="w-full h-full drop-shadow-md">
+            <!-- Tail -->
+            <path d="M 20 90 Q 5 60 25 45" fill="none" stroke="#f472b6" stroke-width="8" stroke-linecap="round" class="animate-tail" />
+            <!-- Body -->
+            <ellipse cx="60" cy="80" rx="35" ry="28" fill="#334155" />
+            <ellipse cx="60" cy="80" rx="28" ry="22" fill="#475569" />
+            <!-- Head -->
+            <circle cx="60" cy="45" r="28" fill="#334155" />
+            <!-- Ears -->
+            <polygon points="38,28 48,8 55,25" fill="#f472b6" class="animate-ear" />
+            <polygon points="82,28 72,8 65,25" fill="#f472b6" class="animate-ear" />
+            <!-- Inner Ears -->
+            <polygon points="40,26 47,12 52,24" fill="#fbcfe8" />
+            <polygon points="80,26 73,12 68,24" fill="#fbcfe8" />
+            <!-- Eyes -->
+            <circle cx="48" cy="42" r="5" fill="#fbbf24" />
+            <circle cx="72" cy="42" r="5" fill="#fbbf24" />
+            <circle cx="49" cy="41" r="2" fill="#0f172a" />
+            <circle cx="73" cy="41" r="2" fill="#0f172a" />
+            <!-- Cheeks -->
+            <circle cx="42" cy="48" r="4" fill="#f472b6" opacity="0.6" />
+            <circle cx="78" cy="48" r="4" fill="#f472b6" opacity="0.6" />
+            <!-- Nose & Mouth -->
+            <polygon points="60,48 57,52 63,52" fill="#f472b6" />
+            <path d="M 57 53 Q 60 57 63 53" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round" />
+            <!-- Left Paw -->
+            <g id="leftPaw" class="transition-transform duration-200">
+              <ellipse cx="40" cy="72" rx="8" ry="12" fill="#f472b6" />
+            </g>
+            <!-- Right Paw -->
+            <g id="rightPaw" class="transition-transform duration-200">
+              <ellipse cx="80" cy="72" rx="8" ry="12" fill="#f472b6" />
+            </g>
+          </svg>
+        </div>
+
+        <!-- Cat Speech Bubble -->
+        <div class="space-y-1">
+          <div class="inline-flex items-center space-x-1.5 bg-pink-500/10 border border-pink-500/20 px-2.5 py-0.5 rounded-full text-pink-300 text-xs font-semibold">
+            <span>🐾</span> <span id="catTitle">Professor Whiskers</span>
+          </div>
+          <p id="catSpeechBubble" class="font-fredoka text-sm sm:text-base text-slate-200 leading-snug">
+            "Hello <span class="text-pink-400 font-bold">Maia</span>! Ready to study <span id="catSubjectDisplay" class="text-sky-400 font-semibold">PSYC 101</span>? Get answers right to hear me applaud!"
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="hidden md:flex items-center space-x-4 bg-slate-900/60 border border-slate-700/50 rounded-xl p-3 text-center">
+        <div>
+          <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Subject Mastery</p>
+          <p id="statMasteryPercent" class="font-fredoka text-xl font-bold text-emerald-400">0%</p>
+        </div>
+        <div class="w-px h-8 bg-slate-700"></div>
+        <div>
+          <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Current Streak</p>
+          <p id="statStreak" class="font-fredoka text-xl font-bold text-amber-400">🔥 0</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODE 1: FLASHCARDS ==================== -->
+    <section id="mode-flashcards" class="mode-section flex-1 flex flex-col items-center justify-center space-y-6">
+      
+      <!-- Progress Bar & Filter Header -->
+      <div class="w-full max-w-2xl flex items-center justify-between text-xs sm:text-sm text-slate-400 font-medium">
+        <span id="flashcardCounter">Card 1 of --</span>
+        <div class="flex items-center space-x-3">
+          <button onclick="shuffleFlashcards()" class="hover:text-pink-400 transition flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Shuffle
+          </button>
+          <span id="knownCountBadge" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-xs font-semibold">0 Known</span>
+        </div>
+      </div>
+
+      <!-- 3D Flip Flashcard Container -->
+      <div class="w-full max-w-2xl h-80 sm:h-96 perspective-1000 cursor-pointer group" onclick="flipFlashcard()">
+        <div id="flashcardInner" class="w-full h-full relative transform-style-3d shadow-2xl rounded-3xl border border-slate-700/80 bg-slate-800">
+          
+          <!-- FRONT FACE (Term / Question) -->
+          <div class="absolute inset-0 w-full h-full backface-hidden rounded-3xl p-6 sm:p-8 flex flex-col justify-between bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 border border-slate-700/50">
+            <div class="flex items-center justify-between">
+              <span id="cardLessonTag" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20">Topic 1</span>
+              <button onclick="event.stopPropagation(); toggleStarCurrentCard()" id="starCardBtn" class="text-slate-500 hover:text-amber-400 transition">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+              </button>
+            </div>
+
+            <div class="text-center my-auto px-2">
+              <p id="cardFrontText" class="font-fredoka text-xl sm:text-2xl md:text-3xl font-semibold text-slate-100 leading-snug">
+                Psychology
+              </p>
+              <p id="cardFrontSubtext" class="text-xs sm:text-sm text-slate-400 mt-3 italic font-normal">
+                Click anywhere to flip definition
+              </p>
+            </div>
+
+            <div class="flex items-center justify-center space-x-2 text-xs text-slate-500">
+              <span>💡 Tap card to reveal answer</span>
+            </div>
+          </div>
+
+          <!-- BACK FACE (Definition / Answer) -->
+          <div class="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-3xl p-6 sm:p-8 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-800 to-purple-950/40 border border-purple-500/30">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-300">Answer & Explanation</span>
+              <span id="cardMnemonicBadge" class="hidden text-xs bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-semibold">Mnemonic</span>
+            </div>
+
+            <div class="my-auto overflow-y-auto max-h-52 px-2 text-center">
+              <p id="cardBackText" class="text-base sm:text-lg text-slate-200 leading-relaxed font-medium">
+                The scientific study of behavior and mental processes.
+              </p>
+              <p id="cardBackExtra" class="text-xs sm:text-sm text-pink-300/80 mt-3 font-normal">
+                Behavior = observable actions; Mental processes = internal thoughts/feelings.
+              </p>
+            </div>
+
+            <div class="flex items-center justify-around pt-2 border-t border-slate-700/50">
+              <button onclick="event.stopPropagation(); markCardStatus(false)" class="bg-slate-700/60 hover:bg-red-500/20 hover:text-red-300 text-slate-300 border border-slate-600 px-4 py-1.5 rounded-xl text-xs font-semibold transition">
+                Need Practice ❌
+              </button>
+              <button onclick="event.stopPropagation(); markCardStatus(true)" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-4 py-1.5 rounded-xl text-xs font-semibold transition">
+                Got It Right! ✅
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Navigation Arrows & Controls -->
+      <div class="flex items-center space-x-4">
+        <button onclick="prevFlashcard()" class="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl border border-slate-700 transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button onclick="nextFlashcard()" class="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-fredoka font-semibold rounded-2xl shadow-lg shadow-pink-500/25 transition">
+          Next Card ➔
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ==================== MODE 2: MULTIPLE CHOICE QUIZ ==================== -->
+    <section id="mode-quiz" class="mode-section hidden flex-1 flex flex-col items-center justify-center space-y-6">
+      
+      <div class="w-full max-w-2xl bg-slate-800/80 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        
+        <!-- Quiz Header Bar -->
+        <div class="flex items-center justify-between text-xs sm:text-sm">
+          <span id="quizLessonBadge" class="font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full uppercase">Lesson 1</span>
+          <div class="flex items-center space-x-3 text-slate-400">
+            <span id="quizQuestionCount">Question 1 of --</span>
+            <span id="quizScoreText" class="text-emerald-400 font-bold">Score: 0</span>
+          </div>
+        </div>
+
+        <!-- Question Prompt -->
+        <div>
+          <h3 id="quizQuestionText" class="font-fredoka text-lg sm:text-xl font-medium text-slate-100 leading-snug">
+            Which branch of psychology diagnoses and treats severe mental, emotional, and behavioral disorders?
+          </h3>
+        </div>
+
+        <!-- Multiple Choice Options -->
+        <div id="quizOptionsContainer" class="grid grid-cols-1 gap-3">
+          <!-- Dynamically populated choices -->
+        </div>
+
+        <!-- Feedback & Explanation Panel -->
+        <div id="quizFeedbackBox" class="hidden p-4 rounded-2xl bg-slate-900/80 border border-slate-700 space-y-2">
+          <div class="flex items-center space-x-2">
+            <span id="quizFeedbackIcon" class="text-xl"></span>
+            <h4 id="quizFeedbackTitle" class="font-fredoka font-bold text-base"></h4>
+          </div>
+          <p id="quizFeedbackDetail" class="text-xs sm:text-sm text-slate-300"></p>
+          <button onclick="loadNextQuizQuestion()" class="mt-2 w-full py-2 bg-pink-500 hover:bg-pink-600 text-white font-fredoka font-semibold rounded-xl text-sm transition">
+            Continue to Next Question ➔
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ==================== MODE 3: MINI-GAMES HUB ==================== -->
+    <section id="mode-games" class="mode-section hidden flex-1 flex flex-col items-center space-y-6">
+      
+      <!-- Mini Game Sub Nav -->
+      <div class="flex items-center space-x-2 bg-slate-800 p-1.5 rounded-2xl border border-slate-700">
+        <button onclick="switchMiniGame('speed')" id="gtab-speed" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-fredoka font-medium text-slate-200 transition bg-slate-700">
+          ⚡ Fast Paws Speed Match
+        </button>
+        <button onclick="switchMiniGame('pavlov')" id="gtab-pavlov" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-fredoka font-medium text-slate-400 hover:text-slate-200 transition">
+          🐶 Pavlov's Conditioning Lab
+        </button>
+      </div>
+
+      <!-- GAME 1: SPEED MATCH -->
+      <div id="minigame-speed" class="w-full max-w-3xl bg-slate-800/80 border border-slate-700 rounded-3xl p-6 space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-fredoka text-xl font-bold text-sky-400">Fast Paws Speed Match</h3>
+            <p class="text-xs text-slate-400">Match active subject terms on the left to definitions on the right!</p>
+          </div>
+          <div class="text-right">
+            <p id="speedTimer" class="font-fredoka text-2xl font-bold text-amber-400">00:30</p>
+            <p id="speedScore" class="text-xs text-emerald-400 font-semibold">Matched: 0 / 5</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Left Col: Terms -->
+          <div id="speedTermsCol" class="space-y-3">
+            <!-- Dynamic terms -->
+          </div>
+          <!-- Right Col: Definitions -->
+          <div id="speedDefsCol" class="space-y-3">
+            <!-- Dynamic definitions -->
+          </div>
+        </div>
+
+        <button onclick="startSpeedMatchGame()" id="startSpeedBtn" class="w-full py-3 bg-sky-500 hover:bg-sky-600 font-fredoka font-bold text-slate-900 rounded-2xl transition">
+          Start Speed Challenge ⏱️
+        </button>
+      </div>
+
+      <!-- GAME 2: PAVLOV'S CONDITIONING SIMULATOR (for Psychology & General Logic) -->
+      <div id="minigame-pavlov" class="hidden w-full max-w-2xl bg-slate-800/80 border border-slate-700 rounded-3xl p-6 space-y-6">
+        <div class="text-center space-y-2">
+          <h3 class="font-fredoka text-xl font-bold text-pink-400">Pavlovian Classical Conditioning Lab</h3>
+          <p class="text-xs sm:text-sm text-slate-300">
+            Help Maia pair the correct Conditioning terms! Complete the sequence to make Professor Whiskers salivate for treats! 🥩🔔
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Unconditioned Stimulus -->
+          <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-2">
+            <span class="text-xs font-bold text-amber-400 uppercase">1. Unconditioned Stimulus (US)</span>
+            <select id="pavlov-US" class="w-full bg-slate-800 border border-slate-700 text-xs sm:text-sm rounded-xl p-2 text-slate-200">
+              <option value="">-- Select Stimulus --</option>
+              <option value="food">Tasty Cat Food / Meat 🥩</option>
+              <option value="bell">Ringing Bell 🔔</option>
+              <option value="salivation">Salivation / Drooling 🤤</option>
+            </select>
+          </div>
+
+          <!-- Unconditioned Response -->
+          <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-2">
+            <span class="text-xs font-bold text-amber-400 uppercase">2. Unconditioned Response (UR)</span>
+            <select id="pavlov-UR" class="w-full bg-slate-800 border border-slate-700 text-xs sm:text-sm rounded-xl p-2 text-slate-200">
+              <option value="">-- Select Response --</option>
+              <option value="salivation">Salivation to Food naturally 🤤</option>
+              <option value="bell">Ringing Bell 🔔</option>
+              <option value="fear">Fear reaction 🙀</option>
+            </select>
+          </div>
+
+          <!-- Conditioned Stimulus -->
+          <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-2">
+            <span class="text-xs font-bold text-purple-400 uppercase">3. Conditioned Stimulus (CS)</span>
+            <select id="pavlov-CS" class="w-full bg-slate-800 border border-slate-700 text-xs sm:text-sm rounded-xl p-2 text-slate-200">
+              <option value="">-- Select Stimulus --</option>
+              <option value="bell">Ringing Bell (originally neutral) 🔔</option>
+              <option value="food">Tasty Cat Food 🥩</option>
+              <option value="praise">Saying Good job Maia 🗣️</option>
+            </select>
+          </div>
+
+          <!-- Conditioned Response -->
+          <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-2">
+            <span class="text-xs font-bold text-purple-400 uppercase">4. Conditioned Response (CR)</span>
+            <select id="pavlov-CR" class="w-full bg-slate-800 border border-slate-700 text-xs sm:text-sm rounded-xl p-2 text-slate-200">
+              <option value="">-- Select Response --</option>
+              <option value="salivation_bell">Salivation to Bell alone 🤤🔔</option>
+              <option value="eating">Eating the food 🍽️</option>
+              <option value="sleeping">Sleeping 😴</option>
+            </select>
+          </div>
+        </div>
+
+        <button onclick="checkPavlovGame()" class="w-full py-3 bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 font-fredoka font-bold text-slate-900 rounded-2xl shadow-lg transition">
+          Test Conditioning Experiment 🧪
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ==================== MODE 4: MASTER CHEAT SHEET ==================== -->
+    <section id="mode-cheatsheet" class="mode-section hidden flex-1 space-y-4">
+      
+      <!-- Search & Subject Scope -->
+      <div class="flex items-center flex-wrap gap-3">
+        <div class="relative flex-1">
+          <input type="text" id="cheatSearchInput" oninput="renderCheatSheet()" placeholder="Search terms, definitions, concepts, or mnemonics..." class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-11 py-3 text-sm text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-pink-500 outline-none">
+          <svg class="w-5 h-5 text-slate-400 absolute left-4 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <select id="cheatScopeSelect" onchange="renderCheatSheet()" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs sm:text-sm rounded-2xl px-3 py-3 font-semibold outline-none">
+          <option value="CURRENT">Current Active Subject Only</option>
+          <option value="ALL_SUBJECTS">Search ALL Subjects</option>
+        </select>
+      </div>
+
+      <!-- Cheat Sheet List Grid -->
+      <div id="cheatSheetList" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
+        <!-- Rendered dynamically -->
+      </div>
+
+    </section>
+
+    <!-- ==================== MODE 5: SUBJECT HUB / DECK BUILDER ==================== -->
+    <section id="mode-deckhub" class="mode-section hidden flex-1 space-y-6">
+      
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 class="font-fredoka text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-300 bg-clip-text text-transparent">
+            Maia's Subject Library & Deck Hub
+          </h2>
+          <p class="text-xs text-slate-400">Switch subjects, create custom study sets, or import JSON flashcard decks!</p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="switchMode('deckbuilder')" class="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-fredoka text-sm font-semibold rounded-xl shadow-lg hover:from-pink-600 hover:to-purple-700 transition flex items-center gap-1.5">
+            <span>➕</span> Create New Deck
+          </button>
+          <button onclick="openImportModal()" class="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-200 font-fredoka text-sm font-semibold rounded-xl hover:bg-slate-700 transition flex items-center gap-1.5">
+            <span>📥</span> Import JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- Subject Cards Grid -->
+      <div id="subjectDeckGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Dynamically rendered subjects -->
+      </div>
+
+    </section>
+
+    <!-- ==================== MODE 6: NEW DECK BUILDER FORM ==================== -->
+    <section id="mode-deckbuilder" class="mode-section hidden flex-1 flex flex-col items-center space-y-6">
+      
+      <div class="w-full max-w-3xl bg-slate-800 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        
+        <div class="flex items-center justify-between border-b border-slate-700/80 pb-4">
+          <div>
+            <h3 class="font-fredoka text-xl font-bold text-pink-400">Create / Edit Subject Deck</h3>
+            <p class="text-xs text-slate-400">Add any school subject, topic, or exam reviewer to study with Professor Whiskers!</p>
+          </div>
+          <button onclick="switchMode('deckhub')" class="text-slate-400 hover:text-slate-200 text-sm font-semibold">
+            ✕ Back to Library
+          </button>
+        </div>
+
+        <!-- Subject Meta Inputs -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2 space-y-1">
+            <label class="text-xs font-bold text-slate-300 uppercase">Subject Title</label>
+            <input type="text" id="builderSubjectTitle" placeholder="e.g. World History 101, Organic Chemistry, SAT Vocabulary" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 focus:ring-2 focus:ring-pink-500 outline-none">
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-bold text-slate-300 uppercase">Category Icon</label>
+            <select id="builderSubjectIcon" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 focus:ring-2 focus:ring-pink-500 outline-none">
+              <option value="🧠">🧠 Psychology / Mind</option>
+              <option value="🌍">🌍 History / Social Studies</option>
+              <option value="💻">💻 Computer Science / Coding</option>
+              <option value="🧪">🧪 Chemistry / Biology / Science</option>
+              <option value="📐">📐 Mathematics / Physics</option>
+              <option value="📚">📚 Literature / Languages</option>
+              <option value="🎨">🎨 Art / Music / Culture</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic Card Builder List -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="font-fredoka font-bold text-slate-200 text-base">Flashcards in Deck</h4>
+            <button onclick="addBuilderCardRow()" class="px-3 py-1.5 bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded-xl text-xs font-semibold hover:bg-purple-600/50 transition">
+              + Add Card
+            </button>
+          </div>
+
+          <div id="builderCardsContainer" class="space-y-4 max-h-80 overflow-y-auto pr-2">
+            <!-- Dynamic card rows -->
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-3 pt-4 border-t border-slate-700">
+          <button onclick="saveCustomSubjectDeck()" class="flex-1 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-fredoka font-bold rounded-2xl shadow-lg transition">
+            Save & Start Studying Deck ✨
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- CELEBRATION / CAT APPLAUSE OVERLAY -->
+  <div id="celebrationOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex-col items-center justify-center p-4">
+    <!-- Confetti Canvas -->
+    <canvas id="confettiCanvas" class="absolute inset-0 pointer-events-none w-full h-full"></canvas>
+
+    <div class="relative bg-slate-800 border-2 border-pink-500/50 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-bounce-short">
+      
+      <!-- Big Animated Applauding Cat SVG -->
+      <div class="w-32 h-32 mx-auto relative">
+        <svg viewBox="0 0 120 120" class="w-full h-full">
+          <circle cx="60" cy="60" r="50" fill="#f472b6" opacity="0.2" class="animate-pulse" />
+          <ellipse cx="60" cy="80" rx="35" ry="28" fill="#334155" />
+          <ellipse cx="60" cy="80" rx="28" ry="22" fill="#f472b6" opacity="0.3" />
+          <circle cx="60" cy="45" r="28" fill="#334155" />
+          <polygon points="38,28 48,8 55,25" fill="#f472b6" />
+          <polygon points="82,28 72,8 65,25" fill="#f472b6" />
+          <path d="M 43 42 Q 48 36 53 42" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linecap="round" />
+          <path d="M 67 42 Q 72 36 77 42" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linecap="round" />
+          <g class="animate-clap-left">
+            <ellipse cx="42" cy="62" rx="10" ry="14" fill="#f472b6" />
+          </g>
+          <g class="animate-clap-right">
+            <ellipse cx="78" cy="62" rx="10" ry="14" fill="#f472b6" />
+          </g>
+        </svg>
+      </div>
+
+      <div class="space-y-2">
+        <h2 class="font-fredoka text-3xl font-bold bg-gradient-to-r from-pink-400 via-purple-300 to-amber-300 bg-clip-text text-transparent">
+          GOOD JOB MAIA! 👏🎉
+        </h2>
+        <p id="celebrationSubtext" class="text-sm text-slate-300 font-medium">
+          Professor Whiskers is super proud of your knowledge!
+        </p>
+      </div>
+
+      <button onclick="closeCelebration()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-fredoka font-bold rounded-2xl shadow-lg transition">
+        Keep Learning! ✨
+      </button>
+    </div>
+  </div>
+
+  <!-- IMPORT DECK MODAL -->
+  <div id="importModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 max-w-md w-full space-y-4 text-center">
+      <h3 class="font-fredoka text-xl font-bold text-slate-100">Import Custom Deck (JSON)</h3>
+      <p class="text-xs text-slate-300">Paste a exported JSON subject deck below to add it to Maia's Library:</p>
+      <textarea id="importJsonArea" rows="6" placeholder='{"id":"cs101","title":"Computer Science","icon":"💻","cards":[...]}' class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 font-mono focus:ring-2 focus:ring-pink-500 outline-none"></textarea>
+      <div class="flex items-center space-x-3">
+        <button onclick="closeImportModal()" class="flex-1 py-2.5 bg-slate-700 text-slate-200 font-fredoka font-semibold rounded-xl text-sm transition">Cancel</button>
+        <button onclick="executeImportJsonDeck()" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-fredoka font-semibold rounded-xl text-sm transition">Import Deck</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESET CONFIRMATION MODAL -->
+  <div id="resetModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 max-w-sm w-full space-y-4 text-center">
+      <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto text-xl">
+        ⚠️
+      </div>
+      <h3 class="font-fredoka text-xl font-bold text-slate-100">Reset Progress?</h3>
+      <p class="text-xs text-slate-300">
+        This will reset Maia's known cards, quiz scores, and streaks for the active subject back to zero.
+      </p>
+      <div class="flex items-center space-x-3 pt-2">
+        <button onclick="closeResetModal()" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-fredoka font-semibold rounded-xl text-sm transition">
+          Cancel
+        </button>
+        <button onclick="executeResetAll()" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-fredoka font-semibold rounded-xl text-sm transition">
+          Yes, Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC & DATABASE ENGINE -->
+  <script>
+    /* ==========================================================================
+       1. DATASET: MULTI-SUBJECT DATABASE ENGINE
+       ========================================================================== */
+    const PRELOADED_SUBJECTS = {
+      "psyc101": {
+        id: "psyc101",
+        title: "PSYC 101: Lessons 1 to 7",
+        icon: "🧠",
+        description: "Introduction to Psychology reviewer covering research, neuroscience, development, perception, learning & IQ.",
+        cards: [
+          // LESSON 1: NATURE OF PSYCHOLOGY
+          {
+            id: "l1_def", lesson: 1, term: "Psychology",
+            definition: "The scientific study of behavior and mental processes.",
+            extra: "Behavior = observable actions; Mental processes = internal experiences (thoughts, feelings). Origin: psyche (soul/mind) + logos (study).",
+            mnemonic: "S-B-T-D-I",
+            distractors: ["The theoretical analysis of medical illnesses and brain surgery.", "The study of human cultural folklore and ancient mythology.", "The philosophical study of psychic phenomena and fortune telling."]
+          },
+          {
+            id: "l1_goals", lesson: 1, term: "4 Goals of Psychology",
+            definition: "Describe, Explain, Predict, Control/Influence.",
+            extra: "Describe (what happens), Explain (why it happens), Predict (what will happen), Control/Influence (how to improve or change behavior).",
+            mnemonic: "D-E-P-C",
+            distractors: ["Diagnose, Evaluate, Prescribe, Cure", "Observe, Hypothesis, Experiment, Report", "Define, Examine, Practice, Correct"]
+          },
+          {
+            id: "l1_branches", lesson: 1, term: "Clinical vs Counseling Psychology",
+            definition: "Clinical diagnoses and treats mental disorders; Counseling deals with everyday personal, educational, and career concerns.",
+            extra: "Clinical = severe mental health disorders. Counseling = coping with everyday life challenges.",
+            mnemonic: "Clinical = Disorders",
+            distractors: ["Clinical works in schools only; Counseling works strictly in hospitals.", "Clinical studies animal behavior; Counseling studies corporate employees.", "Clinical focuses on children; Counseling focuses exclusively on elderly citizens."]
+          },
+          // LESSON 2: RESEARCH AND ETHICS
+          {
+            id: "l2_exp", lesson: 2, term: "Experimental Method",
+            definition: "Research method where researchers manipulate variables to establish cause-and-effect relationships.",
+            extra: "IMPORTANT: Correlation does NOT imply causation. Only experimental method establishes cause and effect!",
+            mnemonic: "Experimental = Cause & Effect",
+            distractors: ["Correlational study that tracks trends across long periods.", "Naturalistic observation without manipulating any variables.", "In-depth case study examining a single rare patient."]
+          },
+          {
+            id: "l2_steps", lesson: 2, term: "8 Steps in Research Process",
+            definition: "Problem, Literature review, Hypothesis, Method, Collect data, Analyze, Conclusions, Report findings.",
+            extra: "Say it as: 'Please Look, Have Method, Do Analysis, Conclude, Report.'",
+            mnemonic: "P-L-H-M-D-A-C-R",
+            distractors: ["Hypothesis, Collect, Analyze, Conclude, Publish, Review, Repeat, Archive", "Problem, Survey, Experiment, Test, Grade, Report, Conclude, Publish", "Literature, Problem, Sample, Method, Interview, Conclusion, Review, File"]
+          },
+          {
+            id: "l2_ethics", lesson: 2, term: "6 Ethical Principles",
+            definition: "Informed Consent, Protection from Harm, Confidentiality, Voluntary Participation, Deception/Debriefing, Integrity.",
+            extra: "Deception is allowed ONLY if justified, harmless, and followed by immediate debriefing.",
+            mnemonic: "C-P-C-V-D-I",
+            distractors: ["Consent, Payment, Contracts, Secrecy, Isolation, Publication", "Anonymity, Permission, Compensation, Immunity, Recording, Security", "Review, Approval, Funding, Transparency, Guarantee, Waiver"]
+          },
+          // LESSON 3: BIOLOGICAL BASES
+          {
+            id: "l3_autonomic", lesson: 3, term: "Sympathetic vs Parasympathetic NS",
+            definition: "Sympathetic activates 'fight-or-flight' emergencies; Parasympathetic calms the body for 'rest-and-digest' recovery.",
+            extra: "Sympathetic = Gas pedal (raises heart rate). Parasympathetic = Brake (conserves energy).",
+            mnemonic: "Sympathetic = Gas / Para = Brake",
+            distractors: ["Sympathetic controls voluntary movement; Parasympathetic controls involuntary organs.", "Sympathetic handles visual processing; Parasympathetic handles auditory hearing.", "Sympathetic releases hormones; Parasympathetic carries electrical action potentials."]
+          },
+          {
+            id: "l3_neuron", lesson: 3, term: "Neuron Signal Direction",
+            definition: "Dendrites (receive) ➔ Cell Body/Soma (process) ➔ Axon (send) ➔ Axon Terminals (release neurotransmitters).",
+            extra: "Dendrites in, Axon out!",
+            mnemonic: "In ➔ Process ➔ Send",
+            distractors: ["Axon Terminals ➔ Axon ➔ Cell Body ➔ Dendrites", "Cell Body ➔ Dendrites ➔ Axon Terminals ➔ Axon", "Dendrites ➔ Axon Terminals ➔ Cell Body ➔ Axon"]
+          },
+          {
+            id: "l3_neurotransmitters", lesson: 3, term: "GABA vs Dopamine",
+            definition: "GABA reduces neural activity and promotes calmness; Dopamine regulates pleasure, motivation, and movement.",
+            extra: "Acetylcholine = learning & muscles; Serotonin = mood/sleep; Endorphins = pain relief.",
+            mnemonic: "GABA = Calming",
+            distractors: ["GABA increases heart rate during stress; Dopamine induces deep sleep.", "GABA handles language comprehension; Dopamine processes vision.", "GABA is a hormone in blood; Dopamine is an enzyme in saliva."]
+          },
+          {
+            id: "l3_lobes", lesson: 3, term: "4 Lobes of Cerebral Cortex",
+            definition: "Frontal (decisions/reasoning), Parietal (touch/sensory), Temporal (hearing/language), Occipital (vision).",
+            extra: "Occipital = Optic (sight). Temporal = Tune in (hearing). Frontal = Front office (thinking).",
+            mnemonic: "Occipital = Vision",
+            distractors: ["Frontal (vision), Parietal (hearing), Temporal (decisions), Occipital (touch)", "Frontal (emotions), Parietal (memory), Temporal (balance), Occipital (breathing)", "Frontal (movement), Parietal (vision), Temporal (touch), Occipital (hearing)"]
+          },
+          // LESSON 4: DEVELOPMENT
+          {
+            id: "l4_stages", lesson: 4, term: "8 Stages of Human Development",
+            definition: "Prenatal, Infancy/Toddlerhood (0-2), Early Childhood (2-6), Middle Childhood (6-12), Adolescence (12-18), Early Adulthood (18-40), Middle Adulthood (40-65), Late Adulthood (65+).",
+            extra: "Adolescence = Puberty & Identity formation; Early Adulthood = Career & Intimacy.",
+            mnemonic: "Conception to Death",
+            distractors: ["Infancy, Early Childhood, Puberty, Adulthood, Middle Age, Old Age, Retirement", "Neonatal, Toddler, School Age, Teenager, Young Adult, Senior", "Prenatal, Childhood, Adolescence, Prime Adulthood, Elderly"]
+          },
+          // LESSON 5: SENSATION & PERCEPTION
+          {
+            id: "l5_sens_percep", lesson: 5, term: "Sensation vs Perception",
+            definition: "Sensation is raw stimulus detection by receptors; Perception is the brain organizing and interpreting stimulus meaning.",
+            extra: "Example: Seeing colors = sensation. Recognizing a red light as 'stop' = perception.",
+            mnemonic: "Detect vs Interpret",
+            distractors: ["Sensation occurs in the brain; Perception occurs in the eyes/ears.", "Sensation is psychological; Perception is purely physiological.", "Sensation is learned through experience; Perception is an innate biological reflex."]
+          },
+          {
+            id: "l5_gestalt", lesson: 5, term: "Gestalt Principles of Perception",
+            definition: "Figure-ground, Proximity, Similarity, Closure, Continuity.",
+            extra: "Closure = filling in missing gaps to perceive a complete object shape.",
+            mnemonic: "F-P-S-C-C",
+            distractors: ["Reflection, Refraction, Absorption, Transmission, Diffraction", "Sensation, Threshold, Adaptation, Signal, Noise", "Absolute, Difference, Weber, Fechner, Stevens"]
+          },
+          // LESSON 6: LEARNING & MEMORY
+          {
+            id: "l6_classical", lesson: 6, term: "Classical Conditioning (Pavlov)",
+            definition: "A neutral stimulus (CS/Bell) is paired with an unconditioned stimulus (US/Food) to produce a conditioned response (CR/Salivation).",
+            extra: "US = Food, UR = Salivation to food, CS = Bell, CR = Salivation to bell alone.",
+            mnemonic: "Pavlov = Association",
+            distractors: ["Learning through rewards and punishments for voluntary actions.", "Learning by observing and imitating a adult role model.", "Encoding facts into long-term semantic memory storage."]
+          },
+          {
+            id: "l6_operant", lesson: 6, term: "Positive vs Negative Reinforcement",
+            definition: "Positive reinforcement adds a pleasant reward; Negative reinforcement removes an unpleasant stimulus. BOTH increase behavior!",
+            extra: "TRAP: Negative reinforcement is NOT punishment! Punishment decreases behavior.",
+            mnemonic: "Reinforcement INCREASES behavior",
+            distractors: ["Positive reinforcement increases behavior; Negative reinforcement decreases behavior.", "Positive reinforcement uses praise; Negative reinforcement is physical punishment.", "Positive reinforcement is voluntary; Negative reinforcement is a biological reflex."]
+          },
+          {
+            id: "l6_memory_types", lesson: 6, term: "Episodic vs Semantic Memory",
+            definition: "Episodic memory stores personal life experiences; Semantic memory stores general facts and conceptual knowledge.",
+            extra: "Explicit/Declarative memory includes both Episodic (graduation day) and Semantic (Manila is PH capital).",
+            mnemonic: "Episodic = Episode of your life",
+            distractors: ["Episodic stores facts; Semantic stores motor skills like riding a bike.", "Episodic lasts 15 seconds; Semantic lasts a lifetime.", "Episodic is non-declarative implicit memory; Semantic is sensory memory."]
+          },
+          // LESSON 7: THINKING, LANGUAGE & IQ
+          {
+            id: "l7_problem", lesson: 7, term: "Algorithm vs Heuristic",
+            definition: "An algorithm is a step-by-step procedure that guarantees a solution; a heuristic is a mental shortcut that is quick but may err.",
+            extra: "Algorithm = Math formula / Recipe. Heuristic = Rule of thumb.",
+            mnemonic: "Algorithm guarantees solution",
+            distractors: ["Algorithm is a mental shortcut; Heuristic is a computer program.", "Algorithm is used in creative thinking; Heuristic is used in concrete thinking.", "Algorithm takes 5 seconds; Heuristic takes hours of logical analysis."]
+          },
+          {
+            id: "l7_language", lesson: 7, term: "Phonemes vs Morphemes",
+            definition: "Phonemes are the smallest units of sound (/b/, /a/, /t/); Morphemes are the smallest units of meaning ('un-' + 'happy').",
+            extra: "Phoneme = Sound. Morpheme = Meaning. Syntax = Sentence structure. Semantics = Sense/meaning.",
+            mnemonic: "Phoneme=Sound / Morpheme=Meaning",
+            distractors: ["Phonemes carry dictionary definitions; Morphemes are grammatical rules.", "Phonemes are sentences; Morphemes are paragraphs.", "Phonemes are learned at age 12; Morphemes are innate from birth."]
+          },
+          {
+            id: "l7_chomsky", lesson: 7, term: "Language Development Theories",
+            definition: "Nativist (Chomsky - innate Language Acquisition Device / LAD), Behaviorist (Skinner - imitation & reinforcement), Social Interactionist (Vygotsky).",
+            extra: "Chomsky = Nature / LAD. Skinner = Nurture / Operant.",
+            mnemonic: "Chomsky = LAD",
+            distractors: ["Nativist (Skinner), Behaviorist (Chomsky), Social (Gardner)", "Nativist (Bandura), Behaviorist (Pavlov), Social (Sternberg)", "Nativist (Spearman), Behaviorist (Thurstone), Social (Freud)"]
+          },
+          {
+            id: "l7_intelligence", lesson: 7, term: "Gardner vs Sternberg Theories",
+            definition: "Gardner proposed 8 Multiple Intelligences; Sternberg proposed Triarchic Theory (Analytical, Creative, Practical).",
+            extra: "Gardner: Linguistic, Math, Spatial, Musical, Bodily, Interpersonal, Intrapersonal, Naturalistic.",
+            mnemonic: "Gardner = 8 / Sternberg = 3",
+            distractors: ["Gardner proposed general 'g' factor; Sternberg proposed 7 primary abilities.", "Gardner studied emotional IQ; Sternberg studied memory capacity.", "Gardner focused on adults; Sternberg focused on infants."]
+          }
+        ]
+      },
+
+      "cs101": {
+        id: "cs101",
+        title: "Computer Science 101: CS & AI",
+        icon: "💻",
+        description: "Data Structures, Algorithms, Object-Oriented Design, and Artificial Intelligence basics.",
+        cards: [
+          {
+            id: "cs_array_link", lesson: 1, term: "Array vs Linked List",
+            definition: "Arrays have contiguous memory with O(1) index access; Linked Lists use pointers with dynamic resizing.",
+            extra: "Array indexing is fast, but insertion/deletion in list can be O(1) if pointer is known.",
+            mnemonic: "Array = Contiguous",
+            distractors: ["Arrays dynamically scale without memory re-allocation; Linked lists use continuous memory blocks.", "Arrays are stack only; Linked lists are queue only.", "Arrays store objects; Linked lists store integers exclusively."]
+          },
+          {
+            id: "cs_big_o", lesson: 1, term: "Big-O Notation",
+            definition: "A mathematical notation describing the worst-case upper bound runtime or space complexity of an algorithm.",
+            extra: "O(1) = Constant, O(log n) = Logarithmic, O(n) = Linear, O(n^2) = Quadratic.",
+            mnemonic: "Upper bound asymptotic limit",
+            distractors: ["An exact measure of cpu clock cycles required by hardware.", "The average-case runtime formula used by compilers.", "A hardware metric measuring GPU memory throughput."]
+          },
+          {
+            id: "cs_llm", lesson: 2, term: "Large Language Model (LLM)",
+            definition: "An AI neural network trained on vast text data using transformer architectures to process and generate language.",
+            extra: "Transformers use attention mechanisms to model context across long text sequences.",
+            mnemonic: "Transformer + Attention",
+            distractors: ["A deterministic database search engine indexing keywords.", "A traditional expert system using if-else decision trees.", "A linear regression algorithm used for stock price forecasting."]
+          }
+        ]
+      },
+
+      "history101": {
+        id: "history101",
+        title: "World History: Major Eras & Civs",
+        icon: "🌍",
+        description: "Key historical eras, ancient civilizations, major revolutions, and global turning points.",
+        cards: [
+          {
+            id: "hist_meso", lesson: 1, term: "Cradle of Civilization (Mesopotamia)",
+            definition: "Region between the Tigris and Euphrates rivers where cuneiform writing, agriculture, and urban city-states emerged.",
+            extra: "Known for Hammurabi's Code, one of the earliest written legal codes.",
+            mnemonic: "Tigris & Euphrates",
+            distractors: ["The Nile river valley in ancient Egypt during the Old Kingdom.", "The Indus Valley civilization in ancient India.", "The Yellow River valley during the Shang Dynasty."]
+          },
+          {
+            id: "hist_ind_rev", lesson: 2, term: "Industrial Revolution",
+            definition: "The transition to new manufacturing processes in Europe and the US (1760s-1840s) using steam power and mechanization.",
+            extra: "Led to rapid urbanization, factory systems, and modern economic structures.",
+            mnemonic: "Steam Power & Factories",
+            distractors: ["The revival of art and classical learning in 15th-century Italy.", "The geopolitical conflict between Western democracies and USSR.", "The political movement establishing feudal kingdoms across medieval Europe."]
+          }
+        ]
+      }
+    };
+
+    /* ==========================================================================
+       2. GLOBAL APP STATE & STORAGE
+       ========================================================================== */
+    let subjectsDatabase = {...PRELOADED_SUBJECTS};
+    let activeSubjectId = "psyc101";
+    let activeSubject = subjectsDatabase[activeSubjectId];
+    
+    let currentFilter = 'ALL';
+    let filteredCards = [...activeSubject.cards];
+    let currentCardIndex = 0;
+    let isCardFlipped = false;
+    let currentMode = 'flashcards'; // 'flashcards', 'quiz', 'games', 'cheatsheet', 'deckhub', 'deckbuilder'
+    let isMuted = false;
+
+    // Progress per subject
+    let subjectProgress = {
+      "psyc101": { knownCardIds: new Set(), starredCardIds: new Set(), score: 0, streak: 0 },
+      "cs101": { knownCardIds: new Set(), starredCardIds: new Set(), score: 0, streak: 0 },
+      "history101": { knownCardIds: new Set(), starredCardIds: new Set(), score: 0, streak: 0 }
+    };
+
+    function getActiveProgress() {
+      if (!subjectProgress[activeSubjectId]) {
+        subjectProgress[activeSubjectId] = { knownCardIds: new Set(), starredCardIds: new Set(), score: 0, streak: 0 };
+      }
+      return subjectProgress[activeSubjectId];
+    }
+
+    /* ==========================================================================
+       3. AUDIO & SPEECH SYNTHESIS ENGINE
+       ========================================================================== */
+    function playSynthesizedApplause() {
+      if (isMuted) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const duration = 1.6;
+        const bufferSize = ctx.sampleRate * duration;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const numClaps = 22;
+        for (let i = 0; i < numClaps; i++) {
+          const startTime = ctx.currentTime + (Math.random() * 1.2);
+          const clapDur = 0.04 + (Math.random() * 0.06);
+
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 1000 + (Math.random() * 800);
+          filter.Q.value = 2.5;
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.25 + Math.random() * 0.2, startTime + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + clapDur);
+
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          src.start(startTime);
+          src.stop(startTime + clapDur);
+        }
+      } catch (e) {
+        console.log("Audio synthesis notice:", e);
+      }
+    }
+
+    function speakMaiaPraise() {
+      if (isMuted) return;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance("Good job Maia!");
+        utterance.pitch = 1.35;
+        utterance.rate = 1.0;
+        
+        const voices = window.speechSynthesis.getVoices();
+        const engVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')));
+        if (engVoice) utterance.voice = engVoice;
+
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function toggleSound() {
+      isMuted = !isMuted;
+      const btn = document.getElementById('soundToggleBtn');
+      const icon = document.getElementById('soundIcon');
+      if (isMuted) {
+        btn.classList.add('opacity-50');
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>`;
+      } else {
+        btn.classList.remove('opacity-50');
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>`;
+        playSynthesizedApplause();
+      }
+    }
+
+    function triggerCatApplause(isManualClick = false) {
+      playSynthesizedApplause();
+      speakMaiaPraise();
+
+      const lp = document.getElementById('leftPaw');
+      const rp = document.getElementById('rightPaw');
+      const speech = document.getElementById('catSpeechBubble');
+      
+      if (lp && rp) {
+        lp.classList.add('animate-clap-left');
+        rp.classList.add('animate-clap-right');
+        setTimeout(() => {
+          lp.classList.remove('animate-clap-left');
+          rp.classList.remove('animate-clap-right');
+        }, 1800);
+      }
+
+      if (speech) {
+        speech.innerHTML = `"👏 <span class="text-pink-400 font-bold">Good job Maia!</span> You mastered this concept in ${activeSubject.title}!"`;
+        setTimeout(() => {
+          speech.innerHTML = `"Hello <span class="text-pink-400 font-bold">Maia</span>! Ready to study <span class="text-sky-400 font-semibold">${activeSubject.title}</span>? Get answers right to hear me applaud!"`;
+        }, 3500);
+      }
+
+      if (!isManualClick) {
+        showCelebrationOverlay();
+      }
+    }
+
+    /* ==========================================================================
+       4. SUBJECT & NAVIGATION LOGIC
+       ========================================================================== */
+    function populateSubjectSelectors() {
+      const globalSel = document.getElementById('globalSubjectSelect');
+      globalSel.innerHTML = '';
+      Object.keys(subjectsDatabase).forEach(sId => {
+        const subj = subjectsDatabase[sId];
+        const opt = document.createElement('option');
+        opt.value = sId;
+        opt.innerText = `${subj.icon} ${subj.title}`;
+        if (sId === activeSubjectId) opt.selected = true;
+        globalSel.appendChild(opt);
+      });
+    }
+
+    function changeActiveSubject(sId) {
+      if (!subjectsDatabase[sId]) return;
+      activeSubjectId = sId;
+      activeSubject = subjectsDatabase[sId];
+      
+      // Update Banner
+      document.getElementById('catSubjectDisplay').innerText = activeSubject.title;
+
+      // Update Lessons Filter
+      populateLessonFilter();
+
+      // Reset card index
+      currentCardIndex = 0;
+      filteredCards = [...activeSubject.cards];
+
+      updateGlobalStats();
+
+      if (currentMode === 'flashcards') renderFlashcard();
+      if (currentMode === 'quiz') startQuizMode();
+      if (currentMode === 'cheatsheet') renderCheatSheet();
+      if (currentMode === 'games') initSpeedMatchGame();
+    }
+
+    function populateLessonFilter() {
+      const filterSel = document.getElementById('lessonFilter');
+      filterSel.innerHTML = `<option value="ALL">All Topics / Lessons</option>`;
+      
+      const lessons = new Set(activeSubject.cards.map(c => c.lesson || 1));
+      lessons.forEach(lNum => {
+        const opt = document.createElement('option');
+        opt.value = lNum;
+        opt.innerText = `Topic / Lesson ${lNum}`;
+        filterSel.appendChild(opt);
+      });
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active-tab', 'bg-pink-500', 'text-white');
+        btn.classList.add('text-slate-400');
+      });
+
+      const activeBtn = document.getElementById(`tab-${mode}`);
+      if (activeBtn) {
+        activeBtn.classList.add('active-tab', 'bg-pink-500', 'text-white');
+        activeBtn.classList.remove('text-slate-400');
+      }
+
+      document.querySelectorAll('.mode-section').forEach(sec => sec.classList.add('hidden'));
+
+      const targetSec = document.getElementById(`mode-${mode}`);
+      if (targetSec) targetSec.classList.remove('hidden');
+
+      if (mode === 'flashcards') renderFlashcard();
+      if (mode === 'quiz') startQuizMode();
+      if (mode === 'cheatsheet') renderCheatSheet();
+      if (mode === 'deckhub') renderSubjectLibraryHub();
+      if (mode === 'deckbuilder') initDeckBuilderForm();
+    }
+
+    function changeLessonFilter(val) {
+      currentFilter = val;
+      if (val === 'ALL') {
+        filteredCards = [...activeSubject.cards];
+      } else {
+        const lNum = parseInt(val, 10);
+        filteredCards = activeSubject.cards.filter(c => (c.lesson || 1) === lNum);
+      }
+      currentCardIndex = 0;
+      
+      if (currentMode === 'flashcards') renderFlashcard();
+      if (currentMode === 'quiz') startQuizMode();
+      if (currentMode === 'cheatsheet') renderCheatSheet();
+    }
+
+    /* ==========================================================================
+       5. MODE 1: FLASHCARDS ENGINE
+       ========================================================================== */
+    function renderFlashcard() {
+      if (!filteredCards || filteredCards.length === 0) {
+        document.getElementById('cardFrontText').innerText = "No flashcards in deck yet!";
+        document.getElementById('cardFrontSubtext').innerText = "Click 'New Subject' or 'Subject Hub' to add cards.";
+        document.getElementById('cardBackText').innerText = "Empty deck.";
+        return;
+      }
+
+      const card = filteredCards[currentCardIndex];
+      isCardFlipped = false;
+
+      const inner = document.getElementById('flashcardInner');
+      inner.classList.remove('rotate-y-180');
+
+      document.getElementById('cardLessonTag').innerText = `Topic ${card.lesson || 1}`;
+      document.getElementById('cardFrontText').innerText = card.term;
+      
+      const prog = getActiveProgress();
+      const starBtn = document.getElementById('starCardBtn');
+      if (prog.starredCardIds.has(card.id)) {
+        starBtn.classList.remove('text-slate-500');
+        starBtn.classList.add('text-amber-400');
+      } else {
+        starBtn.classList.remove('text-amber-400');
+        starBtn.classList.add('text-slate-500');
+      }
+
+      document.getElementById('cardBackText').innerText = card.definition;
+      document.getElementById('cardBackExtra').innerText = card.extra || '';
+
+      const mnemonicTag = document.getElementById('cardMnemonicBadge');
+      if (card.mnemonic) {
+        mnemonicTag.classList.remove('hidden');
+        mnemonicTag.innerText = `💡 ${card.mnemonic}`;
+      } else {
+        mnemonicTag.classList.add('hidden');
+      }
+
+      document.getElementById('flashcardCounter').innerText = `Card ${currentCardIndex + 1} of ${filteredCards.length}`;
+      document.getElementById('knownCountBadge').innerText = `${prog.knownCardIds.size} Known`;
+
+      updateGlobalStats();
+    }
+
+    function flipFlashcard() {
+      if (!filteredCards || filteredCards.length === 0) return;
+      isCardFlipped = !isCardFlipped;
+      const inner = document.getElementById('flashcardInner');
+      if (isCardFlipped) {
+        inner.classList.add('rotate-y-180');
+      } else {
+        inner.classList.remove('rotate-y-180');
+      }
+    }
+
+    function nextFlashcard() {
+      if (!filteredCards || filteredCards.length === 0) return;
+      currentCardIndex = (currentCardIndex + 1) % filteredCards.length;
+      renderFlashcard();
+    }
+
+    function prevFlashcard() {
+      if (!filteredCards || filteredCards.length === 0) return;
+      currentCardIndex = (currentCardIndex - 1 + filteredCards.length) % filteredCards.length;
+      renderFlashcard();
+    }
+
+    function shuffleFlashcards() {
+      if (!filteredCards || filteredCards.length === 0) return;
+      filteredCards.sort(() => Math.random() - 0.5);
+      currentCardIndex = 0;
+      renderFlashcard();
+    }
+
+    function toggleStarCurrentCard() {
+      if (!filteredCards || filteredCards.length === 0) return;
+      const card = filteredCards[currentCardIndex];
+      const prog = getActiveProgress();
+      if (prog.starredCardIds.has(card.id)) {
+        prog.starredCardIds.delete(card.id);
+      } else {
+        prog.starredCardIds.add(card.id);
+      }
+      renderFlashcard();
+    }
+
+    function markCardStatus(isKnown) {
+      if (!filteredCards || filteredCards.length === 0) return;
+      const card = filteredCards[currentCardIndex];
+      const prog = getActiveProgress();
+      if (isKnown) {
+        prog.knownCardIds.add(card.id);
+        triggerCatApplause(false);
+      } else {
+        prog.knownCardIds.delete(card.id);
+      }
+      nextFlashcard();
+    }
+
+    /* ==========================================================================
+       6. MODE 2: MULTIPLE CHOICE QUIZ ENGINE
+       ========================================================================== */
+    let quizCurrentIdx = 0;
+
+    function startQuizMode() {
+      quizCurrentIdx = 0;
+      renderQuizQuestion();
+    }
+
+    function renderQuizQuestion() {
+      if (!filteredCards || filteredCards.length === 0) return;
+      
+      const card = filteredCards[quizCurrentIdx % filteredCards.length];
+      const prog = getActiveProgress();
+      
+      document.getElementById('quizFeedbackBox').classList.add('hidden');
+
+      document.getElementById('quizLessonBadge').innerText = `Topic ${card.lesson || 1}`;
+      document.getElementById('quizQuestionCount').innerText = `Question ${quizCurrentIdx + 1} of ${filteredCards.length}`;
+      document.getElementById('quizScoreText').innerText = `Score: ${prog.score}`;
+      document.getElementById('quizQuestionText').innerText = `What is the definition of "${card.term}"?`;
+
+      // Generate options (1 correct + 3 distractors)
+      let options = [{ text: card.definition, isCorrect: true, extra: card.extra }];
+
+      // Fill distractors from card's own distractors OR other cards in subject
+      if (card.distractors && card.distractors.length >= 3) {
+        card.distractors.forEach(d => options.push({ text: d, isCorrect: false }));
+      } else {
+        const otherCards = activeSubject.cards.filter(c => c.id !== card.id);
+        const shuffledOthers = otherCards.sort(() => Math.random() - 0.5).slice(0, 3);
+        shuffledOthers.forEach(oc => options.push({ text: oc.definition, isCorrect: false }));
+      }
+
+      options = options.slice(0, 4);
+      options.sort(() => Math.random() - 0.5);
+
+      const container = document.getElementById('quizOptionsContainer');
+      container.innerHTML = '';
+
+      options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = "quiz-opt-btn w-full text-left p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 hover:border-pink-500/60 hover:bg-slate-800 text-xs sm:text-sm text-slate-200 transition font-medium flex items-start space-x-3";
+        btn.innerHTML = `
+          <span class="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs flex-shrink-0 border border-slate-700">${String.fromCharCode(65 + idx)}</span>
+          <span class="leading-relaxed">${opt.text}</span>
+        `;
+        btn.onclick = () => handleQuizOptionClick(opt, card, btn);
+        container.appendChild(btn);
+      });
+    }
+
+    function handleQuizOptionClick(option, card, selectedBtn) {
+      document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+
+      const feedbackBox = document.getElementById('quizFeedbackBox');
+      const feedbackIcon = document.getElementById('quizFeedbackIcon');
+      const feedbackTitle = document.getElementById('quizFeedbackTitle');
+      const feedbackDetail = document.getElementById('quizFeedbackDetail');
+
+      const prog = getActiveProgress();
+      feedbackBox.classList.remove('hidden');
+
+      if (option.isCorrect) {
+        selectedBtn.classList.add('bg-emerald-500/20', 'border-emerald-500', 'text-emerald-200');
+        feedbackIcon.innerText = "🎉";
+        feedbackTitle.innerText = "Correct! Good job Maia!";
+        feedbackTitle.className = "font-fredoka font-bold text-emerald-400";
+        feedbackDetail.innerText = card.extra || "Spot on! Excellent mastery of this concept.";
+        
+        prog.score += 10;
+        prog.streak += 1;
+        prog.knownCardIds.add(card.id);
+
+        triggerCatApplause(false);
+
+      } else {
+        selectedBtn.classList.add('bg-red-500/20', 'border-red-500', 'text-red-200');
+        feedbackIcon.innerText = "💡";
+        feedbackTitle.innerText = "Not quite! Keep going!";
+        feedbackTitle.className = "font-fredoka font-bold text-amber-400";
+        feedbackDetail.innerText = `Correct Answer: ${card.definition}`;
+
+        prog.streak = 0;
+      }
+
+      updateGlobalStats();
+    }
+
+    function loadNextQuizQuestion() {
+      quizCurrentIdx = (quizCurrentIdx + 1) % filteredCards.length;
+      renderQuizQuestion();
+    }
+
+    /* ==========================================================================
+       7. MODE 3: MINI-GAMES HUB
+       ========================================================================== */
+    function switchMiniGame(game) {
+      document.getElementById('gtab-speed').className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-fredoka font-medium transition text-slate-400 hover:text-slate-200";
+      document.getElementById('gtab-pavlov').className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-fredoka font-medium transition text-slate-400 hover:text-slate-200";
+
+      document.getElementById(`gtab-${game}`).className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-fredoka font-medium transition text-slate-200 bg-slate-700";
+
+      document.getElementById('minigame-speed').classList.add('hidden');
+      document.getElementById('minigame-pavlov').classList.add('hidden');
+
+      document.getElementById(`minigame-${game}`).classList.remove('hidden');
+
+      if (game === 'speed') initSpeedMatchGame();
+    }
+
+    function checkPavlovGame() {
+      const us = document.getElementById('pavlov-US').value;
+      const ur = document.getElementById('pavlov-UR').value;
+      const cs = document.getElementById('pavlov-CS').value;
+      const cr = document.getElementById('pavlov-CR').value;
+
+      if (us === 'food' && ur === 'salivation' && cs === 'bell' && cr === 'salivation_bell') {
+        const prog = getActiveProgress();
+        prog.streak += 1;
+        triggerCatApplause(false);
+        updateGlobalStats();
+      } else {
+        alertCustom("Oops! Check classical conditioning rules: Unconditioned Stimulus = Food, Unconditioned Response = Salivation to food, Conditioned Stimulus = Bell, Conditioned Response = Salivation to bell alone!");
+      }
+    }
+
+    let speedTimerInterval = null;
+    let speedTimeLeft = 30;
+    let selectedTermBtn = null;
+    let selectedDefBtn = null;
+    let speedMatchedCount = 0;
+
+    function initSpeedMatchGame() {
+      clearInterval(speedTimerInterval);
+      document.getElementById('speedTimer').innerText = "00:30";
+      document.getElementById('speedScore').innerText = "Matched: 0 / 5";
+      document.getElementById('startSpeedBtn').classList.remove('hidden');
+      
+      const termsCol = document.getElementById('speedTermsCol');
+      const defsCol = document.getElementById('speedDefsCol');
+      termsCol.innerHTML = `<p class="text-xs text-slate-500 italic">Click Start Speed Challenge to begin!</p>`;
+      defsCol.innerHTML = '';
+    }
+
+    function startSpeedMatchGame() {
+      document.getElementById('startSpeedBtn').classList.add('hidden');
+      speedTimeLeft = 30;
+      speedMatchedCount = 0;
+      selectedTermBtn = null;
+      selectedDefBtn = null;
+
+      const pool = activeSubject.cards;
+      if (pool.length === 0) return;
+
+      const gameCards = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(5, pool.length));
+      
+      const terms = gameCards.map(c => ({ id: c.id, term: c.term }));
+      const defs = gameCards.map(c => ({ id: c.id, def: c.definition }));
+
+      defs.sort(() => Math.random() - 0.5);
+
+      const termsCol = document.getElementById('speedTermsCol');
+      const defsCol = document.getElementById('speedDefsCol');
+
+      termsCol.innerHTML = '';
+      defsCol.innerHTML = '';
+
+      terms.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = "speed-term-btn w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm text-left font-semibold text-slate-200 hover:border-sky-400 transition";
+        btn.innerText = t.term;
+        btn.dataset.id = t.id;
+        btn.onclick = () => selectSpeedTerm(btn);
+        termsCol.appendChild(btn);
+      });
+
+      defs.forEach(d => {
+        const btn = document.createElement('button');
+        btn.className = "speed-def-btn w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-left font-medium text-slate-300 hover:border-sky-400 transition";
+        btn.innerText = d.def;
+        btn.dataset.id = d.id;
+        btn.onclick = () => selectSpeedDef(btn);
+        defsCol.appendChild(btn);
+      });
+
+      clearInterval(speedTimerInterval);
+      speedTimerInterval = setInterval(() => {
+        speedTimeLeft--;
+        document.getElementById('speedTimer').innerText = `00:${speedTimeLeft < 10 ? '0' : ''}${speedTimeLeft}`;
+        if (speedTimeLeft <= 0) {
+          clearInterval(speedTimerInterval);
+          alertCustom("Time's Up! Fast Paws Speed Match completed.");
+          initSpeedMatchGame();
+        }
+      }, 1000);
+    }
+
+    function selectSpeedTerm(btn) {
+      document.querySelectorAll('.speed-term-btn').forEach(b => b.classList.remove('border-sky-400', 'bg-sky-500/20'));
+      btn.classList.add('border-sky-400', 'bg-sky-500/20');
+      selectedTermBtn = btn;
+      checkSpeedMatch();
+    }
+
+    function selectSpeedDef(btn) {
+      document.querySelectorAll('.speed-def-btn').forEach(b => b.classList.remove('border-sky-400', 'bg-sky-500/20'));
+      btn.classList.add('border-sky-400', 'bg-sky-500/20');
+      selectedDefBtn = btn;
+      checkSpeedMatch();
+    }
+
+    function checkSpeedMatch() {
+      if (selectedTermBtn && selectedDefBtn) {
+        if (selectedTermBtn.dataset.id === selectedDefBtn.dataset.id) {
+          selectedTermBtn.classList.add('opacity-30', 'pointer-events-none');
+          selectedDefBtn.classList.add('opacity-30', 'pointer-events-none');
+          selectedTermBtn = null;
+          selectedDefBtn = null;
+
+          speedMatchedCount++;
+          document.getElementById('speedScore').innerText = `Matched: ${speedMatchedCount} / 5`;
+
+          if (speedMatchedCount === Math.min(5, activeSubject.cards.length)) {
+            clearInterval(speedTimerInterval);
+            const prog = getActiveProgress();
+            prog.streak += 1;
+            triggerCatApplause(false);
+            updateGlobalStats();
+            setTimeout(() => {
+              initSpeedMatchGame();
+            }, 2000);
+          }
+        } else {
+          setTimeout(() => {
+            if (selectedTermBtn) selectedTermBtn.classList.remove('border-sky-400', 'bg-sky-500/20');
+            if (selectedDefBtn) selectedDefBtn.classList.remove('border-sky-400', 'bg-sky-500/20');
+            selectedTermBtn = null;
+            selectedDefBtn = null;
+          }, 400);
+        }
+      }
+    }
+
+    /* ==========================================================================
+       8. MODE 4: MASTER CHEAT SHEET
+       ========================================================================== */
+    function renderCheatSheet() {
+      const query = document.getElementById('cheatSearchInput').value.toLowerCase();
+      const scope = document.getElementById('cheatScopeSelect').value;
+      const listContainer = document.getElementById('cheatSheetList');
+      listContainer.innerHTML = '';
+
+      let pool = [];
+      if (scope === 'ALL_SUBJECTS') {
+        Object.keys(subjectsDatabase).forEach(sId => {
+          const s = subjectsDatabase[sId];
+          s.cards.forEach(c => pool.push({...c, subjectTitle: s.title, subjectIcon: s.icon}));
+        });
+      } else {
+        pool = activeSubject.cards.map(c => ({...c, subjectTitle: activeSubject.title, subjectIcon: activeSubject.icon}));
+      }
+
+      const items = pool.filter(c => 
+        c.term.toLowerCase().includes(query) ||
+        c.definition.toLowerCase().includes(query) ||
+        (c.extra && c.extra.toLowerCase().includes(query)) ||
+        (c.mnemonic && c.mnemonic.toLowerCase().includes(query))
+      );
+
+      if (items.length === 0) {
+        listContainer.innerHTML = `<p class="col-span-full text-center text-sm text-slate-500 py-8">No matching terms found.</p>`;
+        return;
+      }
+
+      items.forEach(c => {
+        const item = document.createElement('div');
+        item.className = "bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-2";
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-pink-400 bg-pink-500/10 px-2.5 py-0.5 rounded-full border border-pink-500/20">${c.subjectIcon} ${c.subjectTitle}</span>
+            ${c.mnemonic ? `<span class="text-xs text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">💡 ${c.mnemonic}</span>` : ''}
+          </div>
+          <h4 class="font-fredoka font-bold text-slate-100 text-base">${c.term}</h4>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${c.definition}</p>
+          ${c.extra ? `<p class="text-xs text-purple-300/80 italic pt-1 border-t border-slate-700/50">${c.extra}</p>` : ''}
+        `;
+        listContainer.appendChild(item);
+      });
+    }
+
+    /* ==========================================================================
+       9. DECK HUB & SUBJECT CREATOR ENGINE
+       ========================================================================== */
+    function renderSubjectLibraryHub() {
+      const grid = document.getElementById('subjectDeckGrid');
+      grid.innerHTML = '';
+
+      Object.keys(subjectsDatabase).forEach(sId => {
+        const subj = subjectsDatabase[sId];
+        const cardCount = subj.cards.length;
+        const prog = subjectProgress[sId] || { knownCardIds: new Set() };
+        const knownCount = prog.knownCardIds ? prog.knownCardIds.size : 0;
+        const pct = cardCount > 0 ? Math.round((knownCount / cardCount) * 100) : 0;
+
+        const card = document.createElement('div');
+        card.className = `bg-slate-800/90 border ${sId === activeSubjectId ? 'border-pink-500/80 ring-2 ring-pink-500/20' : 'border-slate-700/80'} rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-pink-500/50 transition cursor-pointer shadow-xl`;
+        card.onclick = () => {
+          changeActiveSubject(sId);
+          switchMode('flashcards');
+        };
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-2xl border border-slate-700">
+              ${subj.icon}
+            </div>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300">${cardCount} Cards</span>
+          </div>
+
+          <div>
+            <h3 class="font-fredoka text-lg font-bold text-slate-100 leading-snug">${subj.title}</h3>
+            <p class="text-xs text-slate-400 mt-1 line-clamp-2">${subj.description || 'Custom study reviewer deck.'}</p>
+          </div>
+
+          <div class="pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
+            <span class="text-slate-400 font-medium">Mastery: <strong class="text-emerald-400 font-bold">${pct}%</strong></span>
+            <button onclick="event.stopPropagation(); exportSubjectJson('${sId}')" class="text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1">
+              📤 Export
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    let builderCardCount = 0;
+
+    function initDeckBuilderForm() {
+      document.getElementById('builderSubjectTitle').value = '';
+      document.getElementById('builderCardsContainer').innerHTML = '';
+      builderCardCount = 0;
+      
+      // Add initial 3 empty card rows
+      addBuilderCardRow();
+      addBuilderCardRow();
+      addBuilderCardRow();
+    }
+
+    function addBuilderCardRow() {
+      builderCardCount++;
+      const container = document.getElementById('builderCardsContainer');
+      const row = document.createElement('div');
+      row.className = "builder-card-row bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-2 relative";
+      row.dataset.rowId = builderCardCount;
+      row.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-pink-400 uppercase">Card #${builderCardCount}</span>
+          <button onclick="this.parentElement.parentElement.remove()" class="text-xs text-red-400 hover:text-red-300">Remove</button>
+        </div>
+        <input type="text" placeholder="Term / Concept (e.g. Cognitive Psychology)" class="card-term-input w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:ring-1 focus:ring-pink-500 outline-none">
+        <textarea placeholder="Definition / Answer" class="card-def-input w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs text-slate-100 focus:ring-1 focus:ring-pink-500 outline-none" rows="2"></textarea>
+        <input type="text" placeholder="Mnemonic / Memory Trick (Optional)" class="card-mnemonic-input w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs text-amber-200 focus:ring-1 focus:ring-pink-500 outline-none">
+      `;
+      container.appendChild(row);
+    }
+
+    function saveCustomSubjectDeck() {
+      const title = document.getElementById('builderSubjectTitle').value.trim();
+      const icon = document.getElementById('builderSubjectIcon').value;
+
+      if (!title) {
+        alertCustom("Please provide a Subject Title for Maia's new deck!");
+        return;
+      }
+
+      const rows = document.querySelectorAll('.builder-card-row');
+      const newCards = [];
+
+      rows.forEach((row, idx) => {
+        const term = row.querySelector('.card-term-input').value.trim();
+        const def = row.querySelector('.card-def-input').value.trim();
+        const mnemonic = row.querySelector('.card-mnemonic-input').value.trim();
+
+        if (term && def) {
+          newCards.push({
+            id: `custom_${Date.now()}_${idx}`,
+            lesson: 1,
+            term: term,
+            definition: def,
+            extra: "Custom study card created by Maia.",
+            mnemonic: mnemonic || null
+          });
+        }
+      });
+
+      if (newCards.length === 0) {
+        alertCustom("Please add at least 1 valid Term & Definition!");
+        return;
+      }
+
+      const newId = `custom_${Date.now()}`;
+      subjectsDatabase[newId] = {
+        id: newId,
+        title: title,
+        icon: icon,
+        description: `Custom study deck with ${newCards.length} flashcards.`,
+        cards: newCards
+      };
+
+      populateSubjectSelectors();
+      changeActiveSubject(newId);
+      switchMode('flashcards');
+      alertCustom(`Subject "${title}" created successfully! Professor Whiskers is ready!`);
+    }
+
+    function exportSubjectJson(sId) {
+      const subj = subjectsDatabase[sId];
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(subj, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `${subj.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_deck.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function openImportModal() {
+      document.getElementById('importJsonArea').value = '';
+      document.getElementById('importModal').classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+      document.getElementById('importModal').classList.add('hidden');
+    }
+
+    function executeImportJsonDeck() {
+      const raw = document.getElementById('importJsonArea').value.trim();
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && obj.title && Array.isArray(obj.cards)) {
+          const newId = obj.id || `import_${Date.now()}`;
+          subjectsDatabase[newId] = {
+            id: newId,
+            title: obj.title,
+            icon: obj.icon || "📚",
+            description: obj.description || "Imported study reviewer deck.",
+            cards: obj.cards
+          };
+
+          populateSubjectSelectors();
+          changeActiveSubject(newId);
+          closeImportModal();
+          switchMode('flashcards');
+          alertCustom(`Successfully imported "${obj.title}"!`);
+        } else {
+          alertCustom("Invalid JSON format! Must contain 'title' and 'cards' array.");
+        }
+      } catch (e) {
+        alertCustom("Failed to parse JSON. Please verify the code structure.");
+      }
+    }
+
+    /* ==========================================================================
+       10. STATS & UTILITY FUNCTIONS
+       ========================================================================== */
+    function updateGlobalStats() {
+      const prog = getActiveProgress();
+      const cardCount = activeSubject.cards.length;
+      const masteryPct = cardCount > 0 ? Math.round((prog.knownCardIds.size / cardCount) * 100) : 0;
+
+      document.getElementById('statMasteryPercent').innerText = `${masteryPct}%`;
+      document.getElementById('statStreak').innerText = `🔥 ${prog.streak}`;
+    }
+
+    function showCelebrationOverlay() {
+      const overlay = document.getElementById('celebrationOverlay');
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      launchConfetti();
+    }
+
+    function closeCelebration() {
+      const overlay = document.getElementById('celebrationOverlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    function confirmResetModal() {
+      document.getElementById('resetModal').classList.remove('hidden');
+    }
+
+    function closeResetModal() {
+      document.getElementById('resetModal').classList.add('hidden');
+    }
+
+    function executeResetAll() {
+      subjectProgress[activeSubjectId] = { knownCardIds: new Set(), starredCardIds: new Set(), score: 0, streak: 0 };
+      currentCardIndex = 0;
+      closeResetModal();
+      updateGlobalStats();
+      if (currentMode === 'flashcards') renderFlashcard();
+      if (currentMode === 'quiz') startQuizMode();
+    }
+
+    function alertCustom(msg) {
+      const speech = document.getElementById('catSpeechBubble');
+      if (speech) {
+        speech.innerHTML = `<span class="text-amber-400 font-bold">Notice for Maia:</span> ${msg}`;
+        setTimeout(() => {
+          speech.innerHTML = `"Hello <span class="text-pink-400 font-bold">Maia</span>! Ready to study <span class="text-sky-400 font-semibold">${activeSubject.title}</span>? Get answers right to hear me applaud!"`;
+        }, 5000);
+      }
+    }
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#f472b6', '#a855f7', '#fbbf24', '#38bdf8', '#34d399'];
+
+      for (let i = 0; i < 80; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vy: Math.random() * 3 + 2,
+          vx: Math.random() * 2 - 1
+        });
+      }
+
+      function animateConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.y += p.vy;
+          p.x += p.vx;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        if (particles.some(p => p.y < canvas.height)) {
+          requestAnimationFrame(animateConfetti);
+        }
+      }
+      animateConfetti();
+    }
+
+    /* Initialize Application on Page Load */
+    window.onload = function() {
+      populateSubjectSelectors();
+      populateLessonFilter();
+      renderFlashcard();
+      updateGlobalStats();
+    };
+  </script>
+
+</body>
+</html>
